@@ -1,76 +1,8 @@
 import java.util.Random;
 import java.util.Scanner;
 
-class MatrixAddition extends Thread {
-    private int[][] matrixA, matrixB, result;
-    private int startRow, endRow;
-
-    public MatrixAddition(int[][] matrixA, int[][] matrixB, int[][] result, int startRow, int endRow) {
-        this.matrixA = matrixA;
-        this.matrixB = matrixB;
-        this.result = result;
-        this.startRow = startRow;
-        this.endRow = endRow;
-    }
-
-    @Override
-    public void run() {
-        for (int i = startRow; i < endRow; i++) {
-            for (int j = 0; j < matrixA[0].length; j++) {
-                result[i][j] = matrixA[i][j] + matrixB[i][j];
-            }
-        }
-    }
-}
-
-class MatrixSubtraction extends Thread {
-    private int[][] matrixA, matrixB, result;
-    private int startRow, endRow;
-
-    public MatrixSubtraction(int[][] matrixA, int[][] matrixB, int[][] result, int startRow, int endRow) {
-        this.matrixA = matrixA;
-        this.matrixB = matrixB;
-        this.result = result;
-        this.startRow = startRow;
-        this.endRow = endRow;
-    }
-
-    @Override
-    public void run() {
-        for (int i = startRow; i < endRow; i++) {
-            for (int j = 0; j < matrixA[0].length; j++) {
-                result[i][j] = matrixA[i][j] - matrixB[i][j];
-            }
-        }
-    }
-}
-
-class MatrixMultiplications extends Thread {
-    private int[][] matrixA, matrixB, result;
-    private int startRow, endRow;
-
-    public MatrixMultiplications(int[][] matrixA, int[][] matrixB, int[][] result, int startRow, int endRow) {
-        this.matrixA = matrixA;
-        this.matrixB = matrixB;
-        this.result = result;
-        this.startRow = startRow;
-        this.endRow = endRow;
-    }
-
-    @Override
-    public void run() {
-        for (int i = startRow; i < endRow; i++) {
-            for (int j = 0; j < matrixB[0].length; j++) {
-                result[i][j] = 0;
-                for (int k = 0; k < matrixA[0].length; k++) {
-                    result[i][j] += matrixA[i][k] * matrixB[k][j];
-                }
-            }
-        }
-    }
-}
-
 public class MatrixOperations {
+
     public static void main(String[] args) throws InterruptedException {
         Scanner scanner = new Scanner(System.in);
         Random random = new Random();
@@ -108,24 +40,20 @@ public class MatrixOperations {
             System.out.println("Multiplication skipped: Number of columns in Matrix A must equal number of rows in Matrix B.");
         }
 
-        // Number of threads
-        int threadCount = 2;
-        int rowsPerThread = rowsA / threadCount;
-
+        // Perform addition and subtraction
         if (additionResult != null && subtractionResult != null) {
-            MatrixAddition[] addThreads = new MatrixAddition[threadCount];
-            MatrixSubtraction[] subThreads = new MatrixSubtraction[threadCount];
-            for (int i = 0; i < threadCount; i++) {
-                int startRow = i * rowsPerThread;
-                int endRow = (i == threadCount - 1) ? rowsA : startRow + rowsPerThread;
+            Thread[] addThreads = new Thread[rowsA * colsA];
+            Thread[] subThreads = new Thread[rowsA * colsA];
+            int threadCount = 0;
 
-                // Addition
-                addThreads[i] = new MatrixAddition(matrixA, matrixB, additionResult, startRow, endRow);
-                addThreads[i].start();
-
-                // Subtraction
-                subThreads[i] = new MatrixSubtraction(matrixA, matrixB, subtractionResult, startRow, endRow);
-                subThreads[i].start();
+            for (int i = 0; i < rowsA; i++) {
+                for (int j = 0; j < colsA; j++) {
+                    addThreads[threadCount] = new Thread(new ElementAdditionTask(matrixA, matrixB, additionResult, i, j));
+                    subThreads[threadCount] = new Thread(new ElementSubtractionTask(matrixA, matrixB, subtractionResult, i, j));
+                    addThreads[threadCount].start();
+                    subThreads[threadCount].start();
+                    threadCount++;
+                }
             }
 
             // Wait for addition and subtraction threads to finish
@@ -135,14 +63,17 @@ public class MatrixOperations {
             }
         }
 
+        // Perform multiplication
         if (multiplicationResult != null) {
-            MatrixMultiplications[] mulThreads = new MatrixMultiplications[threadCount];
-            for (int i = 0; i < threadCount; i++) {
-                int startRow = i * rowsPerThread;
-                int endRow = (i == threadCount - 1) ? rowsA : startRow + rowsPerThread;
+            Thread[] mulThreads = new Thread[rowsA * colsB];
+            int threadCount = 0;
 
-                mulThreads[i] = new MatrixMultiplications(matrixA, matrixB, multiplicationResult, startRow, endRow);
-                mulThreads[i].start();
+            for (int i = 0; i < rowsA; i++) {
+                for (int j = 0; j < colsB; j++) {
+                    mulThreads[threadCount] = new Thread(new ElementMultiplicationTask(matrixA, matrixB, multiplicationResult, i, j));
+                    mulThreads[threadCount].start();
+                    threadCount++;
+                }
             }
 
             // Wait for multiplication threads to finish
@@ -188,6 +119,72 @@ public class MatrixOperations {
                 System.out.print(value + " ");
             }
             System.out.println();
+        }
+    }
+
+    // Task for element-wise addition
+    static class ElementAdditionTask implements Runnable {
+        private final int[][] matrixA;
+        private final int[][] matrixB;
+        private final int[][] result;
+        private final int row, col;
+
+        public ElementAdditionTask(int[][] matrixA, int[][] matrixB, int[][] result, int row, int col) {
+            this.matrixA = matrixA;
+            this.matrixB = matrixB;
+            this.result = result;
+            this.row = row;
+            this.col = col;
+        }
+
+        @Override
+        public void run() {
+            result[row][col] = matrixA[row][col] + matrixB[row][col];
+        }
+    }
+
+    // Task for element-wise subtraction
+    static class ElementSubtractionTask implements Runnable {
+        private final int[][] matrixA;
+        private final int[][] matrixB;
+        private final int[][] result;
+        private final int row, col;
+
+        public ElementSubtractionTask(int[][] matrixA, int[][] matrixB, int[][] result, int row, int col) {
+            this.matrixA = matrixA;
+            this.matrixB = matrixB;
+            this.result = result;
+            this.row = row;
+            this.col = col;
+        }
+
+        @Override
+        public void run() {
+            result[row][col] = matrixA[row][col] - matrixB[row][col];
+        }
+    }
+
+    // Task for element-wise multiplication
+    static class ElementMultiplicationTask implements Runnable {
+        private final int[][] matrixA;
+        private final int[][] matrixB;
+        private final int[][] result;
+        private final int row, col;
+
+        public ElementMultiplicationTask(int[][] matrixA, int[][] matrixB, int[][] result, int row, int col) {
+            this.matrixA = matrixA;
+            this.matrixB = matrixB;
+            this.result = result;
+            this.row = row;
+            this.col = col;
+        }
+
+        @Override
+        public void run() {
+            result[row][col] = 0;
+            for (int k = 0; k < matrixA[0].length; k++) {
+                result[row][col] += matrixA[row][k] * matrixB[k][col];
+            }
         }
     }
 }
